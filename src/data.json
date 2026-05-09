@@ -1,0 +1,63 @@
+{
+  "games": [
+    {
+      "id": "2048",
+      "title": "2048",
+      "description": "Join the numbers and get to the 2048 tile! A classic addictive puzzle game.",
+      "iframeUrl": "https://play2048.co/",
+      "thumbnail": "https://images.unsplash.com/photo-1628202926206-c63a34b1618f?q=80&w=1000&auto=format&fit=crop",
+      "category": "Puzzle"
+    },
+    {
+      "id": "hextris",
+      "title": "Hextris",
+      "description": "A fast-paced puzzle game inspired by Tetris. Rotate the hexagon to match colors.",
+      "iframeUrl": "https://hextris.io/",
+      "thumbnail": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1000&auto=format&fit=crop",
+      "category": "Arcade"
+    },
+    {
+      "id": "slope",
+      "title": "Slope",
+      "description": "The ultimate speed run game. Drive your ball down the steep slope as far as you can.",
+      "iframeUrl": "https://slope-game.github.io/",
+      "thumbnail": "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1000&auto=format&fit=crop",
+      "category": "Action"
+    },
+    {
+      "id": "tetris",
+      "title": "Tetris",
+      "description": "The world's most popular puzzle game. Clear lines and score points.",
+      "iframeUrl": "https://tetris.com/play-tetris",
+      "thumbnail": "https://images.unsplash.com/photo-1621259182978-f09e5e2ca849?q=80&w=1000&auto=format&fit=crop",
+      "category": "Puzzle"
+    },
+    {
+      "id": "dino-run",
+      "title": "Dino Run",
+      "description": "The famous offline dinosaur game. Jump over obstacles and run for as long as you can.",
+      "iframeUrl": "https://chromedino.com/",
+      "thumbnail": "https://images.unsplash.com/photo-1551103782-8ab07afd45c1?q=80&w=1000&auto=format&fit=crop",
+      "category": "Arcade"
+    }
+  ],
+  "movies": [
+    {
+      "id": "big-buck-bunny",
+      "title": "Big Buck Bunny",
+      "description": "A large and lovable rabbit deals with three tiny bullies.",
+      "iframeUrl": "https://www.youtube.com/embed/aqz-KE-bpKQ",
+      "thumbnail": "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1000&auto=format&fit=crop"
+    }
+  ],
+  "sounds": [
+    { "id": "kick", "name": "Kick", "emoji": "🥁", "color": "bg-pink-500" },
+    { "id": "snare", "name": "Snare", "emoji": "🥁", "color": "bg-cyan-500" },
+    { "id": "clap", "name": "Clap", "emoji": "👏", "color": "bg-purple-500" },
+    { "id": "hey", "name": "Hey!", "emoji": "🗣️", "color": "bg-yellow-500" },
+    { "id": "beam", "name": "Beam", "emoji": "⚡", "color": "bg-red-500" },
+    { "id": "laser", "name": "Laser", "emoji": "🔫", "color": "bg-green-500" },
+    { "id": "glitch", "name": "Glitch", "emoji": "👾", "color": "bg-blue-500" },
+    { "id": "drop", "name": "Drop", "emoji": "💧", "color": "bg-indigo-500" }
+  ]
+}
