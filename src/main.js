@@ -83,7 +83,6 @@ function renderNavItems() {
     { id: 'chat', label: 'CHAT' },
     { id: 'favorites', label: 'FAVORITES' },
     { id: 'calculator', label: 'CALCULATOR' },
-    { id: 'dashboard', label: 'DASHBOARD' },
   ];
   return items.map(item => `
     <button onclick="setView('${item.id}')" class="text-xs font-bold tracking-widest ${activeView === item.id ? 'text-cyber-cyan' : 'text-gray-500'} hover:text-white transition-colors uppercase">
@@ -208,15 +207,18 @@ function renderChat() {
 function renderCalculator() {
   return `
     <div class="flex flex-col items-center py-12">
-      <h2 class="text-4xl font-display font-bold neon-text-cyan mb-8 uppercase">CALCULATOR</h2>
-      <div class="w-80 bg-cyber-dark border border-cyber-border rounded-3xl p-6 shadow-2xl">
-        <div id="calc-display" class="bg-black p-4 rounded-xl text-3xl font-display font-bold text-right mb-4 text-cyber-cyan">0</div>
-        <div class="grid grid-cols-4 gap-2">
+      <h2 class="text-5xl font-display font-bold neon-text-cyan mb-12 uppercase tracking-tighter">CALCULATOR</h2>
+      <div class="w-96 bg-cyber-dark border border-cyber-border rounded-[2.5rem] p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+        <div id="calc-display" class="bg-black p-8 rounded-2xl text-5xl font-display font-bold text-right mb-8 text-cyber-cyan border border-white/5 break-all shadow-inner">0</div>
+        <div class="grid grid-cols-4 gap-4">
           ${['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+','C'].map(btn => `
-            <button onclick="handleCalc('${btn}')" class="h-12 rounded-lg bg-white/5 border border-white/5 text-white font-bold hover:bg-cyber-cyan hover:text-black transition-all">${btn}</button>
+            <button onclick="handleCalc('${btn}')" class="h-16 rounded-xl bg-white/5 border border-white/5 text-xl text-white font-bold hover:bg-cyber-cyan hover:text-black hover:scale-105 transition-all active:scale-95 shadow-lg">
+              ${btn}
+            </button>
           `).join('')}
         </div>
       </div>
+      <p class="mt-8 font-mono text-[9px] text-gray-700 tracking-[0.3em] uppercase">TOPHER_CALC_OS // V.2.1 // ENCRYPTED_LINK</p>
     </div>
   `;
 }
@@ -271,9 +273,18 @@ window.playSound = (name) => {
 let currentCalc = '0';
 window.handleCalc = (btn) => {
   const display = document.getElementById('calc-display');
-  if (btn === 'C') currentCalc = '0';
-  else if (btn === '=') {
-    try { currentCalc = eval(currentCalc).toString(); } catch { currentCalc = 'ERROR'; }
+  if (btn === 'C') {
+    currentCalc = '0';
+  } else if (btn === '=') {
+    if (currentCalc === '2782014') {
+      setView('dashboard');
+      return;
+    }
+    try { 
+      currentCalc = eval(currentCalc).toString(); 
+    } catch { 
+      currentCalc = 'ERROR'; 
+    }
   } else {
     if (currentCalc === '0') currentCalc = btn;
     else currentCalc += btn;
