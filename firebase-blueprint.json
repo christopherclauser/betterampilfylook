@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isAdmin": { "type": "boolean" }
+      },
+      "required": ["username", "createdAt"]
+    },
+    "Announcement": {
+      "title": "Global Announcement",
+      "description": "Message broadcast to all active users",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string" },
+        "author": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["message", "author", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles indexed by UID"
+    },
+    "usernames/{username}": {
+      "schema": { "type": "object", "properties": { "uid": { "type": "string" } } },
+      "description": "Registry for unique usernames"
+    },
+    "announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "History of announcements"
+    }
+  }
+}

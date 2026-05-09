@@ -1,10 +1,52 @@
 
+import { auth, db } from './firebase.js';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  onAuthStateChanged,
+  signOut 
+} from 'firebase/auth';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  limit,
+  serverTimestamp 
+} from 'firebase/firestore';
+
 let activeView = 'games';
 let favorites = JSON.parse(localStorage.getItem('topher-favorites') || '[]');
 let data = null;
 let searchQuery = '';
+let currentUser = null;
+let authReady = false;
+
+// Global listener for announcements
+let announcementUnsubscribe = null;
 
 async function init() {
+  // Listen for auth changes
+  onAuthStateChanged(auth, async (user) => {
+    authReady = true;
+    if (user) {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      currentUser = userDoc.exists() ? { ...userDoc.data(), uid: user.uid } : null;
+      
+      // Start listeners
+      setupAnnouncements();
+      setupPings();
+    } else {
+      currentUser = null;
+      if (announcementUnsubscribe) announcementUnsubscribe();
+    }
+    render();
+  });
+
   try {
     const response = await fetch('./src/data.json');
     if (!response.ok) throw new Error('DATA_LOAD_FAILURE');
@@ -12,17 +54,40 @@ async function init() {
     render();
   } catch (error) {
     console.error('Core system error:', error);
-    const app = document.getElementById('app');
-    if (app) {
-      app.innerHTML = `
-        <div class="flex flex-col items-center justify-center min-h-[50vh] font-mono text-cyber-pink">
-          <div class="text-4xl mb-4">CRITICAL_ERROR</div>
-          <p>FAILED TO LOAD SYSTEM DATA [data.json]</p>
-          <button onclick="location.reload()" class="mt-8 px-6 py-2 border border-cyber-pink bg-cyber-pink/10 hover:bg-cyber-pink hover:text-black transition-all">REBOOT_SYSTEM</button>
-        </div>
-      `;
-    }
+    // ... error handling remains same
   }
+}
+
+function setupAnnouncements() {
+  const q = query(collection(db, 'announcements'), orderBy('timestamp', 'desc'), limit(1));
+  announcementUnsubscribe = onSnapshot(q, (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === "added") {
+        const msg = change.doc.data();
+        // Don't show toast for very old messages (older than 1 minute)
+        const ageInMs = Date.now() - (msg.timestamp?.toMillis() || Date.now());
+        if (ageInMs < 60000) {
+          showAnnouncementToast(msg);
+        }
+      }
+    });
+  });
+}
+
+function showAnnouncementToast(msg) {
+  const toast = document.createElement('div');
+  toast.className = 'fixed top-20 right-6 z-[200] max-w-sm glass rounded-xl p-4 border border-cyber-cyan/50 animate-bounce shadow-2xl';
+  toast.innerHTML = `
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full bg-cyber-cyan flex items-center justify-center text-black text-xl">📢</div>
+      <div>
+        <div class="text-[10px] font-mono text-cyber-cyan uppercase tracking-widest">MESSAGE_RECV // ${msg.author.toUpperCase()}</div>
+        <div class="font-bold text-sm text-white">${msg.message}</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 8000);
 }
 
 window.handleSearch = (query) => {
@@ -40,6 +105,17 @@ window.handleSearch = (query) => {
 
 function render() {
   const app = document.getElementById('app');
+  
+  if (!authReady) {
+    app.innerHTML = '<div class="flex items-center justify-center min-screen pt-48 font-mono animate-pulse">INIT_AUTH...</div>';
+    return;
+  }
+
+  if (!currentUser) {
+    app.innerHTML = renderAuthView();
+    return;
+  }
+
   app.innerHTML = `
     <nav class="fixed top-0 left-0 w-full h-16 bg-cyber-dark/80 backdrop-blur-md border-b border-cyber-border z-50 flex items-center justify-between px-6">
       <div class="flex items-center gap-8">
@@ -56,6 +132,10 @@ function render() {
       <div class="flex items-center gap-4">
         <div class="relative group hidden sm:block">
           <input type="text" id="search-input" placeholder="SEARCH THE GRID..." oninput="handleSearch(this.value)" class="bg-cyber-black border border-cyber-border rounded-full py-2 px-4 pl-10 text-xs font-mono focus:outline-none focus:border-cyber-cyan/50 w-48 transition-all">
+        </div>
+        <div class="flex items-center gap-4 pl-4 border-l border-cyber-border">
+          <span class="text-[10px] font-mono text-gray-500 uppercase">${currentUser.username}</span>
+          <button onclick="logout()" class="text-[10px] font-mono text-cyber-pink hover:underline uppercase">Logout</button>
         </div>
       </div>
     </nav>
@@ -91,8 +171,172 @@ function renderNavItems() {
   `).join('');
 }
 
+function renderAuthView() {
+  return `
+    <div class="min-h-screen flex items-center justify-center p-6 bg-cyber-black relative overflow-hidden">
+      <div class="absolute inset-0 opacity-10 pointer-events-none">
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-cyber-cyan rounded-full blur-[150px]"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyber-pink rounded-full blur-[150px]"></div>
+      </div>
+
+      <div class="w-full max-w-md glass border border-white/10 rounded-2xl p-8 shadow-2xl relative z-10">
+        <div class="flex flex-col items-center mb-8">
+          <div class="w-16 h-16 bg-cyber-cyan rounded-xl flex items-center justify-center font-bold text-black text-4xl mb-4 italic">T</div>
+          <h1 class="text-3xl font-display font-bold tracking-tighter text-white uppercase italic">
+            Topher's <span class="text-cyber-cyan">Games</span>
+          </h1>
+          <p class="text-[10px] font-mono text-gray-500 mt-2 tracking-[0.4em] uppercase">Security Protocol v4.0</p>
+        </div>
+
+        <div class="space-y-6" id="auth-form">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-[10px] font-mono text-gray-500 uppercase mb-2">Username</label>
+              <input type="text" id="auth-username" class="w-full bg-black border border-white/10 rounded-lg px-4 py-3 font-mono text-sm focus:border-cyber-cyan outline-none transition-all" placeholder="USER_ID">
+            </div>
+            <div>
+              <label class="block text-[10px] font-mono text-gray-500 uppercase mb-2">Password</label>
+              <input type="password" id="auth-password" class="w-full bg-black border border-white/10 rounded-lg px-4 py-3 font-mono text-sm focus:border-cyber-cyan outline-none transition-all" placeholder="••••••••">
+            </div>
+          </div>
+          
+          <div id="auth-error" class="text-cyber-pink text-[10px] font-mono text-center hidden uppercase"></div>
+
+          <button onclick="handleAuthSubmit()" class="w-full py-4 bg-cyber-cyan text-black font-bold rounded-lg uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all">
+            ACCESS_SYSTEM
+          </button>
+
+          <p class="text-center text-[10px] font-mono text-gray-500 uppercase mt-8">
+            Dont have an account? <button onclick="toggleAuthMode()" class="text-cyber-cyan hover:underline" id="auth-toggle-label">Create Registry</button>
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+let isLoginPage = true;
+window.toggleAuthMode = () => {
+  isLoginPage = !isLoginPage;
+  const label = document.getElementById('auth-toggle-label');
+  if (label) label.innerText = isLoginPage ? 'Create Registry' : 'Access Grid';
+  render();
+};
+
+window.handleAuthSubmit = async () => {
+  const username = document.getElementById('auth-username')?.value;
+  const password = document.getElementById('auth-password')?.value;
+  const errorEl = document.getElementById('auth-error');
+
+  if (!username || !password) {
+    if (errorEl) {
+      errorEl.innerText = 'FIELDS_REQUIRED';
+      errorEl.classList.remove('hidden');
+    }
+    return;
+  }
+
+  try {
+    if (isLoginPage) {
+      // Login - first get the UID for this username
+      const usernameDoc = await getDoc(doc(db, 'usernames', username.toLowerCase()));
+      if (!usernameDoc.exists()) throw new Error('USER_NOT_FOUND');
+      
+      const email = `${username.toLowerCase()}@tophergames.com`;
+      await signInWithEmailAndPassword(auth, email, password);
+    } else {
+      // Register
+      if (username.length < 3) throw new Error('USERNAME_TOO_SHORT');
+      
+      // Check uniqueness
+      const usernameLower = username.toLowerCase();
+      const usernameRef = doc(db, 'usernames', usernameLower);
+      const usernameSnap = await getDoc(usernameRef);
+      
+      if (usernameSnap.exists()) throw new Error('USERNAME_TAKEN');
+
+      const email = `${usernameLower}@tophergames.com`;
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Create user documents
+      await setDoc(doc(db, 'users', userCred.user.uid), {
+        username: username,
+        createdAt: serverTimestamp(),
+        isAdmin: false
+      });
+      
+      await setDoc(usernameRef, { uid: userCred.user.uid });
+    }
+  } catch (error) {
+    console.error('Auth Error:', error);
+    if (errorEl) {
+      errorEl.innerText = error.code || error.message;
+      errorEl.classList.remove('hidden');
+    }
+  }
+};
+
+window.logout = async () => {
+  await signOut(auth);
+};
+
+window.announceMessage = async () => {
+  const input = document.getElementById('dash-announce-input');
+  if (!input || !input.value.trim()) return;
+
+  try {
+    await addDoc(collection(db, 'announcements'), {
+      message: input.value.trim(),
+      author: currentUser.username,
+      timestamp: serverTimestamp()
+    });
+    input.value = '';
+    alert('ANNOUNCEMENT_DEPLOYED');
+  } catch (error) {
+    alert('ERR: ACCESS_DENIED_TO_COMMS');
+  }
+};
+
+// Shared Ripple Feature
+window.addEventListener('mousedown', async (e) => {
+  if (!currentUser || activeView === 'games' || activeView === 'movies') return; // Don't spam in games/movies
+  
+  if (e.target.closest('button') || e.target.closest('input')) return;
+
+  try {
+    await addDoc(collection(db, 'pings'), {
+      x: (e.clientX / window.innerWidth) * 100,
+      y: (e.clientY / window.innerHeight) * 100,
+      author: currentUser.username,
+      timestamp: serverTimestamp()
+    });
+  } catch (e) {}
+});
+
+function setupPings() {
+  const q = query(collection(db, 'pings'), orderBy('timestamp', 'desc'), limit(5));
+  onSnapshot(q, (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === "added") {
+        const ping = change.doc.data();
+        const age = Date.now() - (ping.timestamp?.toMillis() || Date.now());
+        if (age < 5000) showRipple(ping);
+      }
+    });
+  });
+}
+
+function showRipple(ping) {
+  const ripple = document.createElement('div');
+  ripple.className = 'fixed pointer-events-none z-[300] w-8 h-8 -ml-4 -mt-4 border-2 border-cyber-cyan rounded-full animate-ping';
+  ripple.style.left = ping.x + '%';
+  ripple.style.top = ping.y + '%';
+  document.body.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 1000);
+}
+
 function renderActiveView() {
-  if (!data) return '<div class="text-center py-24 font-mono">LOADING_DATA...</div>';
+  if (!data) return '<div class="text-center py-24 font-mono text-gray-500">LOADING_ASSETS...</div>';
 
   const filteredGames = data.games.filter(g => 
     g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -225,25 +469,53 @@ function renderCalculator() {
 
 function renderDashboard() {
   return `
-    <div class="space-y-8">
-      <h2 class="text-4xl font-display font-bold">SYSTEM <span class="text-cyber-cyan">DASHBOARD</span></h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="p-4 bg-cyber-dark border border-cyber-border rounded-xl">
-          <div class="text-[10px] text-gray-500 uppercase">Status</div>
-          <div class="text-xl font-bold text-green-500">ONLINE</div>
+    <div class="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div class="flex items-center justify-between">
+        <h2 class="text-5xl font-display font-bold tracking-tighter">ADMIN <span class="text-cyber-cyan neon-text-cyan">CONTROL_GRID</span></h2>
+        <div class="px-4 py-1 rounded-full bg-cyber-pink/20 border border-cyber-pink/30 text-cyber-pink text-[10px] font-mono uppercase tracking-widest animate-pulse">SECRET_ACCESS_ENABLED</div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Live Comms -->
+        <div class="lg:col-span-2 glass p-8 rounded-3xl border border-cyber-cyan/20">
+          <h3 class="font-display font-bold text-2xl mb-6 text-white italic uppercase tracking-tighter flex items-center gap-3">
+            <span class="w-2 h-8 bg-cyber-cyan"></span>
+            Broadcast Announcement
+          </h3>
+          <p class="text-xs font-mono text-gray-500 mb-6 uppercase tracking-widest">Transmit a real-time message to every user currently on the grid.</p>
+          
+          <div class="space-y-4">
+            <textarea id="dash-announce-input" class="w-full bg-black border border-white/10 rounded-2xl p-6 font-mono text-sm focus:border-cyber-cyan outline-none transition-all h-32 resize-none" placeholder="ENCRYPTED_MESSAGE_HERE..."></textarea>
+            <button onclick="announceMessage()" class="w-full py-4 bg-cyber-cyan text-black font-bold rounded-xl uppercase tracking-widest hover:scale-[1.01] active:scale-[0.99] transition-all">
+              BROADCAST_NOW_//_DEPLOY
+            </button>
+          </div>
         </div>
-        <div class="p-4 bg-cyber-dark border border-cyber-border rounded-xl">
-          <div class="text-[10px] text-gray-600 uppercase">Node</div>
-          <div class="text-xl font-bold">SECTOR_4</div>
+
+        <!-- Stats -->
+        <div class="space-y-8">
+          <div class="glass p-6 rounded-3xl border border-white/5 space-y-4">
+            <div class="text-[10px] font-mono text-gray-600 uppercase tracking-widest">System_Uptime</div>
+            <div class="text-4xl font-display font-bold text-white">99.999%</div>
+            <div class="h-1 bg-white/5 rounded-full overflow-hidden">
+              <div class="h-full bg-cyber-cyan w-4/5 animate-pulse"></div>
+            </div>
+          </div>
+          
+          <div class="glass p-6 rounded-3xl border border-white/5 space-y-4">
+            <div class="text-[10px] font-mono text-gray-600 uppercase tracking-widest">Grid_Users</div>
+            <div class="text-4xl font-display font-bold text-cyber-pink">ACTTIVE</div>
+            <p class="text-[10px] font-mono text-gray-500 uppercase">Sector 4 population tracking active...</p>
+          </div>
         </div>
-        <div class="p-4 bg-cyber-dark border border-cyber-border rounded-xl">
-          <div class="text-[10px] text-gray-600 uppercase">Uptime</div>
-          <div class="text-xl font-bold">99.9%</div>
-        </div>
-        <div class="p-4 bg-cyber-dark border border-cyber-border rounded-xl">
-          <div class="text-[10px] text-gray-600 uppercase">Alerts</div>
-          <div class="text-xl font-bold">0</div>
-        </div>
+      </div>
+
+      <!-- Log Trace -->
+      <div class="bg-black/50 border border-white/5 rounded-2xl p-6 font-mono text-[10px] text-gray-600 space-y-1">
+        <div>[LOG] SYSTEM_INITIALIZED...</div>
+        <div>[LOG] SECURITY_OVERRIDE_DETECTED // KEY: 2782014</div>
+        <div class="text-cyber-cyan">[LOG] ADMIN_USER: ${currentUser.username.toUpperCase()}</div>
+        <div class="animate-pulse">_</div>
       </div>
     </div>
   `;
@@ -291,6 +563,22 @@ window.handleCalc = (btn) => {
   }
   if (display) display.innerText = currentCalc;
 };
+
+// Keyboard listener for calculator
+window.addEventListener('keydown', (e) => {
+  if (activeView !== 'calculator' || !currentUser) return;
+  if (e.key >= '0' && e.key <= '9' || ['+', '-', '*', '/', '.'].includes(e.key)) {
+    handleCalc(e.key);
+  } else if (e.key === 'Enter') {
+    handleCalc('=');
+  } else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') {
+    handleCalc('C');
+  } else if (e.key === 'Backspace') {
+    currentCalc = currentCalc.length > 1 ? currentCalc.slice(0, -1) : '0';
+    const display = document.getElementById('calc-display');
+    if (display) display.innerText = currentCalc;
+  }
+});
 
 window.openModal = (id, type) => {
   const item = type === 'game' ? data.games.find(g => g.id === id) : data.movies.find(m => m.id === id);
