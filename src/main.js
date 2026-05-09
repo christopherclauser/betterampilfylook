@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword, 
   onAuthStateChanged,
   signOut 
-} from 'firebase/auth';
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 import { 
   doc, 
   setDoc, 
@@ -17,7 +17,7 @@ import {
   orderBy, 
   limit,
   serverTimestamp 
-} from 'firebase/firestore';
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
 let activeView = 'games';
 let favorites = JSON.parse(localStorage.getItem('topher-favorites') || '[]');
@@ -327,8 +327,11 @@ function setupPings() {
 }
 
 function showRipple(ping) {
+  const colors = ['#00F3FF', '#FF007F', '#BC13FE', '#FFFB00'];
+  const color = colors[Math.floor(Math.random() * colors.length)];
   const ripple = document.createElement('div');
-  ripple.className = 'fixed pointer-events-none z-[300] w-8 h-8 -ml-4 -mt-4 border-2 border-cyber-cyan rounded-full animate-ping';
+  ripple.className = 'fixed pointer-events-none z-[300] w-12 h-12 -ml-6 -mt-6 border-4 rounded-full animate-ping';
+  ripple.style.borderColor = color;
   ripple.style.left = ping.x + '%';
   ripple.style.top = ping.y + '%';
   document.body.appendChild(ripple);
@@ -450,19 +453,19 @@ function renderChat() {
 
 function renderCalculator() {
   return `
-    <div class="flex flex-col items-center py-12">
-      <h2 class="text-5xl font-display font-bold neon-text-cyan mb-12 uppercase tracking-tighter">CALCULATOR</h2>
-      <div class="w-96 bg-cyber-dark border border-cyber-border rounded-[2.5rem] p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
-        <div id="calc-display" class="bg-black p-8 rounded-2xl text-5xl font-display font-bold text-right mb-8 text-cyber-cyan border border-white/5 break-all shadow-inner">0</div>
-        <div class="grid grid-cols-4 gap-4">
+    <div class="flex flex-col items-center py-12 animate-in zoom-in duration-500">
+      <h2 class="text-7xl font-display font-bold neon-text-cyan mb-12 uppercase tracking-tighter italic">CALC_OS</h2>
+      <div class="w-[480px] bg-cyber-dark border-4 border-cyber-border rounded-[3.5rem] p-12 shadow-[0_0_100px_rgba(0,243,255,0.1)]">
+        <div id="calc-display" class="bg-black p-10 rounded-3xl text-6xl font-display font-bold text-right mb-10 text-cyber-cyan border-2 border-white/5 break-all shadow-inner font-mono">0</div>
+        <div class="grid grid-cols-4 gap-6">
           ${['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+','C'].map(btn => `
-            <button onclick="handleCalc('${btn}')" class="h-16 rounded-xl bg-white/5 border border-white/5 text-xl text-white font-bold hover:bg-cyber-cyan hover:text-black hover:scale-105 transition-all active:scale-95 shadow-lg">
+            <button onclick="handleCalc('${btn}')" class="h-24 rounded-2xl bg-white/5 border border-white/10 text-3xl text-white font-bold hover:bg-cyber-cyan hover:text-black hover:scale-105 transition-all active:scale-95 shadow-[0_4px_0_rgba(255,255,255,0.05)]">
               ${btn}
             </button>
           `).join('')}
         </div>
       </div>
-      <p class="mt-8 font-mono text-[9px] text-gray-700 tracking-[0.3em] uppercase">TOPHER_CALC_OS // V.2.1 // ENCRYPTED_LINK</p>
+      <p class="mt-12 font-mono text-xs text-gray-700 tracking-[0.5em] uppercase">ACCESS_KEY_REQUIRED_FOR_ROOT_SHELL</p>
     </div>
   `;
 }
